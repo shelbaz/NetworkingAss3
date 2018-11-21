@@ -1,0 +1,42 @@
+python3 httpfs.py --help
+
+python3 httpfs.py -v
+
+python3 httpfs.py -d filedirectory
+
+python3 httpfs.py -d filedirectory -v
+
+TERMINAL:
+
+curl -get localhost:8080
+
+curl -get localhost:8080/FILENAME
+
+curl --header "Content-Type: application/json"   --request POST   --data '{"somethingelse":"1234","password":"23847"}'   localhost:8080/testing55
+
+
+python3 httpc.py --help
+
+GET Permutations
+
+python3 httpc.py get http://httpbin.org/get
+
+python3 httpc.py get http://httpbin.org/get -v
+
+python3 httpc.py get http://httpbin.org/get -v -h '{"Test":"Something"}'
+
+python3 httpc.py get http://httpbin.org/get -v -h -o '{"Test":"Something"}'
+
+POST Permutations 
+
+python3 httpc.py post http://httpbin.org/post
+
+python3 httpc.py post http://httpbin.org/post -v
+
+python3 httpc.py post http://httpbin.org/post -v -h '{"Test":"Something"}'
+
+python3 httpc.py post http://httpbin.org/post -v -h -o '{"Test":"Something"}'
+
+python3 httpc.py post http://httpbin.org/post -v -h -o -d '{"Test":"Something"}' '{"Testing":"Somethingelse"}'
+
+python3 httpc.py post http://httpbin.org/post -v -h -o -f '{"Test":"Something"}' input.txt
