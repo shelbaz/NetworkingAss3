@@ -3,36 +3,36 @@ import threading
 import argparse
 import os
 import sys
+import ipaddress
 
 from packet import Packet
 #current directory of program
 directory = os.getcwd()
 
 def run_server(host, port):
-    listener = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     try:
-        listener.bind(('', port))
+        sock.bind(('', port))
         print('Echo server is listening at', port)
         while True:
-            conn, addr = listener.recvfrom(1024)
-            handle_client(listener, conn, addr)
+            conn, sender = sock.recvfrom(1024)
+            handle_client(sock, conn, sender)
 
     finally:
-        listener.close()
+        sock.close()
 
 
-def handle_client(listener, conn, addr):
+def handle_client(sock, conn, sender):
     global directory
     global args
-
-    print ('New client from', addr)
+    print ('New client from', sender)
 
     try:
         data = Packet.from_bytes(conn)
         if not data:
             request_error = '400 Bad Request'
             request_error = request_error.encode('utf-8')
-            conn.send(request_error)
+            conn.sendto(data.to_bytes(), sender)
             return
         decoded_request = data.payload.decode('utf-8')
         decoded_body = decoded_request.split('\r\n\r\n')
@@ -53,10 +53,10 @@ def handle_client(listener, conn, addr):
         conn.close()
 
 def get_directory_files():
-    list_directory = os.listdir(directory) 
+    list_directory = os.listdir(directory)
     all_files = ''
     for file in list_directory:
-        all_files += file + '\n' 
+        all_files += file + '\n'
 
     all_files = all_files.encode('utf-8')
     return all_files
@@ -105,7 +105,7 @@ def post_request(conn, decoded_request, decoded_body):
         conn.send(unauthorized_error)
         return
 
-    # Create or overwrite the file named bar in the data directory with the content of the body of the request. 
+    # Create or overwrite the file named bar in the data directory with the content of the body of the request.
     if len(split_body) > 0:
         try:
             write_directory = directory + split_body[0] + '.txt'
@@ -126,6 +126,24 @@ def post_request(conn, decoded_request, decoded_body):
         unauthorized_error = '401 Access Unauthorized'
         unauthorized_error = unauthorized_error.encode('utf-8')
         conn.send(unauthorized_error)
+
+def handshake(sock, conn, sender):
+    status = False
+    p =Packet.from_bytes(data)
+    try:
+        ack = Packet(packet_type=3, seq_num=1, peer_ip_addr= p.peer_ip_addr, peer_port=p.peer_port, payload= p.msg.encode("utf-8"))
+        print('Sending SYN-ACK to ' + p.peer_ip_addr)
+        conn.settimeout(5)
+        reply, sender = sock.recvfrom(1024)
+        sender_response = Packet.from_bytes(reply)
+        if sender_response.packet_type == 1:
+            print('ACK received')
+            status = True
+    except socket.timeout:
+        print('Connection has timed out')
+        return
+    return status
+
 
 # Argument parser
 parser = argparse.ArgumentParser()
