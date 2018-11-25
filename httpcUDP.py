@@ -40,13 +40,13 @@ def syn(connection, router_address, router_port, server_ip_address, server_port)
 
 def ack(connection, router_address, router_port, sequence_number, server_ip_address, server_port):
     packet_type = packetObj.ACK
-    sequence_number += 1
     message = "Sending ACK"
-    response = create_and_send_packet(connection, packet_type, sequence_number, server_ip_address, server_port, (router_address, router_port), message)
+    response = create_and_send_packet(connection, packet_type, sequence_number+1, server_ip_address, server_port, (str(router_address), router_port), message)
     return response
 
 def create_and_send_packet(connection, packet_type, sequence_number, server_ip_address, server_port, server_address, message):
     packet = packetObj.Packet(packet_type, sequence_number, server_ip_address, server_port, message.encode('utf-8'))
+
     return connection.sendto(packet.to_bytes(), server_address)
 
 def init_connection(router_address, router_port, server_addresss, server_port):
@@ -62,9 +62,11 @@ def init_connection(router_address, router_port, server_addresss, server_port):
             packet = packetObj.Packet.from_bytes(response)
             packet_type = packet.packet_type
             print("Payload:" + packet.payload.decode('utf-8'))
-
-        ack(connection, router_address, router_port, server_ip_address, server_port)
-
+            print("Packet type", packet.packet_type)
+            print("Seq Number", packet.seq_num)
+            if(packet.packet_type == packetObj.SYN_ACK):
+                ack(connection, packet.peer_ip_addr, packet.peer_port, packet.seq_num, server_ip_address, server_port)
+                print("Connection established")
 
 
     except socket.timeout:

@@ -1,159 +1,182 @@
 import socket
-import threading
-import argparse
+import click
 import os
-import sys
-import ipaddress
+import packet as packetObj
+import random
 
-from packet import Packet
-#current directory of program
-directory = os.getcwd()
+TCRLF = '\r\n\r\n'
+CRLF = '\r\n'
+CR = '\r'
+LF = '\n'
 
-def run_server(host, port):
-    sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-    try:
-        sock.bind(('', port))
-        print('Echo server is listening at', port)
-        while True:
-            conn, sender = sock.recvfrom(1024)
-            handle_client(sock, conn, sender)
+sequence_number = 0
 
-    finally:
-        sock.close()
+def fileDirectoryHandler(directory):
+    rootDirectory = os.path.dirname(os.path.realpath(__file__))
+    if directory != '':
+        rootDirectory = directory
+
+    allFiles = os.listdir(rootDirectory)
+    # if rootDirectory == os.path.dirname(os.path.realpath(__file__)):
+    #     allFiles.remove("httpfs.py")
+
+    return (rootDirectory, allFiles)
 
 
-def handle_client(sock, conn, sender):
-    global directory
-    global args
-    print ('New client from', sender)
+def process_request(request):
+    header = request[0].split()
+    method = header[0]
+    path = header[1]
+    return (method, path)
 
-    try:
-        data = Packet.from_bytes(conn)
-        if not data:
-            request_error = '400 Bad Request'
-            request_error = request_error.encode('utf-8')
-            conn.sendto(data.to_bytes(), sender)
-            return
-        decoded_request = data.payload.decode('utf-8')
-        decoded_body = decoded_request.split('\r\n\r\n')
-        decoded_body = decoded_body[1]
+def read_file(directory, file_path):
+    f = open(directory + file_path + ".txt", 'r')
+    data_read = f.read()
+    f.close()
+    return data_read
 
-        if args.v: #verbose
-            print('Request received: \n' + decoded_request)
+def write_file(directory, file_path, body):
+    file = open(directory + file_path + ".txt", "w")
+    file.write(str(body))
+    file.close()
 
-        if 'GET' in decoded_request:
-            get_request(conn, decoded_request, decoded_body)
-        elif 'POST' in decoded_request:
-            post_request(conn, decoded_request, decoded_body)
+def send_response(connection, response):
+    response += '\n'
+    connection.sendall(bytes(response.encode('utf-8')))
+    connection.close()
+
+def getHandler(path, listOfFiles, rootDir, verbose):
+    strippedPath = path.strip("/")
+    strippedList = []
+    for index in range(len(listOfFiles)):
+        strippedList.append(os.path.splitext(listOfFiles[index])[0])
+    if path == "/":
+        if verbose:
+            print("Responding with the list of files \n")
+        return (str(listOfFiles) + '\n')
+    else:
+        if strippedPath in strippedList:
+            if verbose:
+                print("Contents of file: " + strippedPath + "\n")
+            if (strippedPath + ".txt") not in listOfFiles:
+                deniedMessage = "HTTP 404 - Error: You cannot access folder inside of this structure"
+                if verbose:
+                    print(deniedMessage)
+                return deniedMessage
+            else:
+                return read_file(rootDir, path)
         else:
-            request_error = '400 Bad Request'
-            request_error = request_error.encode('utf-8')
-            conn.send(request_error)
-    finally:
-        conn.close()
-
-def get_directory_files():
-    list_directory = os.listdir(directory)
-    all_files = ''
-    for file in list_directory:
-        all_files += file + '\n'
-
-    all_files = all_files.encode('utf-8')
-    return all_files
+            errorMsg = "HTTP 404 - Error: File or directory non existent"
+            if verbose:
+                print(errorMsg)
+            return errorMsg
 
 
-def get_request(conn, decoded_request, decoded_body):
-    global directory
+def postHandler(path, listOfFiles, rootDir, verbose, body):
+    strippedPath = path.strip("/")
+    strippedList = []
+    for index in range(len(listOfFiles)):
+        strippedList.append(os.path.splitext(listOfFiles[index])[0])
 
-    if '/' == decoded_body:
-        directory_files = get_directory_files()
-        conn.sendall(directory_files)
-        return
-    #security check
-    in_root = False
-    root_directory_list = directory.split('\\')
-    decoded_body_list = directory + decoded_body
-    decoded_body_list = decoded_body_list.split('\\')
-    if len(root_directory_list) == (len(decoded_body_list) - 1):
-        in_root = True
-
-    if decoded_body and in_root:
-        try:
-            read_directory = directory + decoded_body + '.txt'
-            f = open(read_directory, 'r')
-            file_text = f.read()
-            file_text = file_text.encode('utf-8')
-            conn.sendall(file_text)
-            f.close
-        except Exception as e:
-            e = str(e).encode('utf-8')
-            conn.send(e)
+    if strippedPath in strippedList:
+        write_file(rootDir, path, body)
+        return "File: " + path + " overwritten successfully"
+    elif strippedPath not in strippedList:
+        write_file(rootDir, path, body)
+        return "File: " + path + " written successfully"
     else:
-        unauthorized_error = '401 Access Unauthorized'
-        unauthorized_error = unauthorized_error.encode('utf-8')
-        conn.send(unauthorized_error)
+        errorMsg = "HTTP 403 - Action refused"
+        if verbose:
+            print(errorMsg)
+        return errorMsg
 
-def post_request(conn, decoded_request, decoded_body):
-    global directory
-
-    split_body = decoded_body.split(" ")
-    #security check
-    length_check = split_body[0].split('\\')
-    if len(length_check) != 2:
-        unauthorized_error = '401 Access Unauthorized'
-        unauthorized_error = unauthorized_error.encode('utf-8')
-        conn.send(unauthorized_error)
-        return
-
-    # Create or overwrite the file named bar in the data directory with the content of the body of the request.
-    if len(split_body) > 0:
-        try:
-            write_directory = directory + split_body[0] + '.txt'
-            f = open(write_directory, 'w')
-            for word in split_body[1:]:
-                f.write(word + ' ')
-            f.close
-        except Exception as e:
-            e = str(e).encode('utf-8')
-            conn.send(e)
-            return
-        finally:
-            success = 'Successfully written to file ' + split_body[0] + '.txt'
-            success = success.encode('utf-8')
-            conn.sendall(success)
-
-    else:
-        unauthorized_error = '401 Access Unauthorized'
-        unauthorized_error = unauthorized_error.encode('utf-8')
-        conn.send(unauthorized_error)
-
-def handshake(sock, conn, sender):
-    status = False
-    p =Packet.from_bytes(data)
+def handle_response(connection, data, sender_address):
+    global sequence_number
     try:
-        ack = Packet(packet_type=3, seq_num=1, peer_ip_addr= p.peer_ip_addr, peer_port=p.peer_port, payload= p.msg.encode("utf-8"))
-        print('Sending SYN-ACK to ' + p.peer_ip_addr)
-        conn.settimeout(5)
-        reply, sender = sock.recvfrom(1024)
-        sender_response = Packet.from_bytes(reply)
-        if sender_response.packet_type == 1:
-            print('ACK received')
-            status = True
-    except socket.timeout:
-        print('Connection has timed out')
-        return
-    return status
+        received_packet = packetObj.Packet.from_bytes(data)
+        print("Packet: ", received_packet)
+        print("Packet type:", received_packet.packet_type)
+        peer_ip_address = received_packet.peer_ip_addr
+        peer_port = received_packet.peer_port
+        if(received_packet.packet_type == packetObj.SYN):
+            sequence_number = random.randint(1,4294967295)
+            packet_type = packetObj.SYN_ACK
+            message = "Sending SYN-ACK"
+            print(message)
+            sending_packet = packetObj.Packet(packet_type, sequence_number, peer_ip_address, peer_port,
+                                      message.encode('utf-8'))
+            connection.sendto(sending_packet.to_bytes(), sender_address)
+
+        if(received_packet.packet_type == packetObj.ACK):
+            if(received_packet.seq_num ==sequence_number+1):
+                print("Connection established, beginning data send")
+                ## Send data here
+
+                ## When data finished being sent, expect FIN
+
+        if(received_packet.packet_type == packetObj.DATA):
+            ## process receiving data if needed?
+            return
+
+        if(received_packet.packet_type == packetObj.FIN):
+            ## sending ACK for received FIN
+            message = "Sending ACK"
+            sending_packet = packetObj.Packet(packetObj.ACK, sequence_number+1, peer_ip_address, peer_port,
+                                      message.encode('utf-8'))
+            connection.sendto(sending_packet.to_bytes(), sender_address)
+            ## sending FIN
+            message = "Sending FIN"
+            sending_packet = packetObj.Packet(packetObj.FIN, random.randint(1,4294967295), peer_ip_address, peer_port,
+                                      message.encode('utf-8'))
+            connection.sendto(sending_packet.to_bytes(), sender_address)
+            ## wait for ACK for sent FIN
+            print("Connection is closed")
+            connection.close()
+
+    finally:
+        print("Connection is forcefully closed")
+        connection.close()
 
 
-# Argument parser
-parser = argparse.ArgumentParser()
-parser.add_argument('-v', help = 'Prints debugging message.', action = 'store_true')
-parser.add_argument('-p', help = 'Specifies the port number.', type = int, default = 8080)
-parser.add_argument('-d', help = 'Specifies the directory.', type = str, default = directory)
-args = parser.parse_args()
-if os.path.exists(args.d):
-    directory = args.d
-else:
-    print('Directory does not exist.')
-    sys.exit(1)
-run_server('', args.p)
+def init_connection(port):
+    hostname = ''
+    connection = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    connection.bind((hostname, port))
+    print("Listening on port " + str(port))
+
+    data, address = connection.recvfrom(1024)
+    handle_response(connection, data, address)
+
+    # return (request, connection, request_header, request_body)
+
+@click.command()
+@click.option('--port', '-p' , type=int, default=8007, help="Specifies a port number or default=8080")
+@click.option('--directory', '-d', type=str, default='', help="Specifies read/write directory or default is root")
+@click.option('--verbose', '-v', is_flag=True, help="Will print verbose messages.")
+def cli(port, directory, verbose):
+
+    init_connection(port)
+
+
+    # (method, path) = process_request(request)
+    # (rootDir, listOfFiles) = fileDirectoryHandler(directory)
+    # if verbose:
+    #     print("--------------------------------------------------------------")
+    #     print("headerData: \n" + str(headerData) + "\n")
+    #     print("--------------------------------------------------------------")
+    #     print("bodyData: \n" + str(bodyData) + "\n")
+    #     print("--------------------------------------------------------------")
+    #     print("listOfFiles: \n" + str(listOfFiles) + "\n")
+    #
+    # response = ""
+    # if method == "GET":
+    #     response = getHandler(path, listOfFiles, rootDir, verbose)
+    # elif method == "POST":
+    #     response = postHandler(path, listOfFiles, rootDir, bodyData, verbose)
+    #
+    # send_response(connection, response)
+
+if __name__ == '__main__':
+    cli()
+
+

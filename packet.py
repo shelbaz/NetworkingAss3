@@ -7,6 +7,7 @@ ACK = 1
 SYN = 2
 SYN_ACK = 3
 NAK = 4
+FIN = 5
 
 
 
