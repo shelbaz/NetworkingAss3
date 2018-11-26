@@ -10,6 +10,9 @@ CR = '\r'
 LF = '\n'
 
 sequence_number = 0
+#from click
+global_verbose = False
+global_directory = ''
 
 def fileDirectoryHandler(directory):
     rootDirectory = os.path.dirname(os.path.realpath(__file__))
@@ -24,10 +27,14 @@ def fileDirectoryHandler(directory):
 
 
 def process_request(request):
-    header = request[0].split()
-    method = header[0]
-    path = header[1]
-    return (method, path)
+    global global_verbose
+    header = request.split()
+    method = header[1]
+    body = header[3].strip("'")
+    
+    if '-v' in request:
+        global_verbose = True
+    return (method, body)
 
 def read_file(directory, file_path):
     f = open(directory + file_path + ".txt", 'r')
@@ -92,6 +99,8 @@ def postHandler(path, listOfFiles, rootDir, verbose, body):
 
 def handle_response(connection, data, sender_address):
     global sequence_number
+    global global_verbose
+    global global_directory
     try:
         received_packet = packetObj.Packet.from_bytes(data)
         print("Packet: ", received_packet)
@@ -116,6 +125,26 @@ def handle_response(connection, data, sender_address):
 
         if(received_packet.packet_type == packetObj.DATA):
             ## process receiving data if needed?
+            # format of request is  curl -get localhost:8080 /
+            # That is for get file list
+            # Needs to have a space between addr and request
+            (method, request) = process_request(str(received_packet.payload))
+            (rootDir, listOfFiles) = fileDirectoryHandler(global_directory)
+            response = ''
+
+            if('get' in method):
+                response = getHandler(request, listOfFiles, rootDir, global_verbose)
+            elif('post' in method):
+                # body = request.split at data defining body
+                # post localhost:8080 -v -h '{"Test":"Something"}'
+                # response = postHandler(request, listOfFiles, rootDir, global_verbose, body)
+                response = 'nothing really yet'
+            else:
+                response = "Incorrect request format"
+            
+            sending_packet = packetObj.Packet(packetObj.ACK, sequence_number+1, peer_ip_address, peer_port,
+            response.encode('utf-8'))
+            connection.sendto(sending_packet.to_bytes(), sender_address)
             return
 
         if(received_packet.packet_type == packetObj.FIN):
@@ -154,10 +183,13 @@ def init_connection(port):
 @click.option('--directory', '-d', type=str, default='', help="Specifies read/write directory or default is root")
 @click.option('--verbose', '-v', is_flag=True, help="Will print verbose messages.")
 def cli(port, directory, verbose):
-
+    global global_verbose
+    global global_directory
     init_connection(port)
-
-
+    if verbose:
+        global_verbose = True
+    if directory:
+        global_directory = directory
     # (method, path) = process_request(request)
     # (rootDir, listOfFiles) = fileDirectoryHandler(directory)
     # if verbose:
