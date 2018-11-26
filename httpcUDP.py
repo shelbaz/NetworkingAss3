@@ -31,22 +31,23 @@ CRLF = "\r\n"
 # LOOP Between Client and server: Send back and forth data until connection closed
 
 def syn(connection, router_address, router_port, server_ip_address, server_port):
-    message = "Starting handshake : Sending SYN"
-    packet_type = packetObj.SYN
+    message = "curl -get localhost:8080 /"
+    print(message)
+    packet_type = packetObj.DATA
     sequence_number = random.randint(0,4294967295)  # 4 byte unsigned int (0-> 4294967295)
     response = create_and_send_packet(connection, packet_type, sequence_number, server_ip_address, server_port,
                                       (router_address, router_port), message)
     return response
 
 def ack(connection, router_address, router_port, sequence_number, server_ip_address, server_port):
-    packet_type = packetObj.ACK
-    message = "Sending ACK"
+    packet_type = packetObj.DATA
+    message = "curl -get localhost:8080 /"
     response = create_and_send_packet(connection, packet_type, sequence_number+1, server_ip_address, server_port, (str(router_address), router_port), message)
     return response
 
 def create_and_send_packet(connection, packet_type, sequence_number, server_ip_address, server_port, server_address, message):
     packet = packetObj.Packet(packet_type, sequence_number, server_ip_address, server_port, message.encode('utf-8'))
-
+    print('creating and sending packet')
     return connection.sendto(packet.to_bytes(), server_address)
 
 def init_connection(router_address, router_port, server_addresss, server_port):
