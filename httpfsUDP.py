@@ -25,16 +25,24 @@ def fileDirectoryHandler(directory):
 
     return (rootDirectory, allFiles)
 
+def init_request_split(request):
+    (request_header, request_body) = request.split(TCRLF)
+    request = request.split(CRLF)
+    return (request, request_header, request_body)
 
 def process_request(request):
     global global_verbose
-    header = request.split()
-    method = header[1]
-    body = header[3].strip("'")
-    
+    header = request[0].split()
+    print('header: ', header)
+    method = header[0]
+    print('method: ', method)
+
+    path = header[1]
+    print('path: ', path)
+
     if '-v' in request:
         global_verbose = True
-    return (method, body)
+    return (method, path)
 
 def read_file(directory, file_path):
     f = open(directory + file_path + ".txt", 'r')
@@ -126,25 +134,28 @@ def handle_response(connection, data, sender_address):
         if(received_packet.packet_type == packetObj.DATA):
             ## process receiving data if needed?
             # format of request is  curl -get localhost:8080 /
-            # That is for get file list
-            # Needs to have a space between addr and request
-            (method, request) = process_request(str(received_packet.payload))
+            (request, headerData, bodyData) = init_request_split(received_packet.payload.decode('unicode_escape'))
+            (method, request) = process_request(request)
             (rootDir, listOfFiles) = fileDirectoryHandler(global_directory)
             response = ''
 
-            if('get' in method):
+            if('GET' in method):
                 response = getHandler(request, listOfFiles, rootDir, global_verbose)
-            elif('post' in method):
+            elif('POST' in method):
                 # body = request.split at data defining body
-                # post localhost:8080 -v -h '{"Test":"Something"}'
-                # response = postHandler(request, listOfFiles, rootDir, global_verbose, body)
-                response = 'nothing really yet'
+                response = postHandler(request, listOfFiles, rootDir, global_verbose, bodyData)
             else:
                 response = "Incorrect request format"
-            
-            sending_packet = packetObj.Packet(packetObj.ACK, sequence_number+1, peer_ip_address, peer_port,
-            response.encode('utf-8'))
-            connection.sendto(sending_packet.to_bytes(), sender_address)
+
+            if global_verbose:
+                headerData += response
+                sending_packet = packetObj.Packet(packetObj.ACK, sequence_number+1, peer_ip_address, peer_port,
+                headerData.encode('utf-8'))
+                connection.sendto(sending_packet.to_bytes(), sender_address)
+            else:
+                sending_packet = packetObj.Packet(packetObj.ACK, sequence_number+1, peer_ip_address, peer_port,
+                response.encode('utf-8'))
+                connection.sendto(sending_packet.to_bytes(), sender_address)
             return
 
         if(received_packet.packet_type == packetObj.FIN):
