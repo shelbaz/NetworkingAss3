@@ -1,9 +1,14 @@
+Assignment 3 Client:
+
+'POST /testing55 Host: localhost:8080 Content-Type: application/json Content-Length: 37\r\n\r\n'{somethingelse:1234,password:23847}'
+
+python3 httpcUDP.py -h '{"Test":"Something"}'
+
+
 
 ASSIGNMENT3:
 
 python3 httpcUDP.py -rh 'localhost' -rp '3000' -sh 'localhost' -sp '8007'
-
-
 
 
 
@@ -20,7 +25,7 @@ TERMINAL:
 
 curl -get localhost:8080
 
-curl -get localhost:8080/testing55
+curl -get localhost:8080/FILENAME
 
 curl --header "Content-Type: application/json"   --request POST   --data '{"somethingelse":"1234","password":"23847"}'   localhost:8080/testing55
 
@@ -37,7 +42,7 @@ python3 httpc.py get http://httpbin.org/get -v -h '{"Test":"Something"}'
 
 python3 httpc.py get http://httpbin.org/get -v -h -o '{"Test":"Something"}'
 
-POST Permutations 
+POST Permutations
 
 python3 httpc.py post http://httpbin.org/post
 
@@ -50,15 +55,3 @@ python3 httpc.py post http://httpbin.org/post -v -h -o '{"Test":"Something"}'
 python3 httpc.py post http://httpbin.org/post -v -h -o -d '{"Test":"Something"}' '{"Testing":"Somethingelse"}'
 
 python3 httpc.py post http://httpbin.org/post -v -h -o -f '{"Test":"Something"}' input.txt
-
-
-Assignment 3 payload requests:
-
-GET:
-files in direct:
-'GET / HTTP/1.1\r\nHost: localhost:8080\r\nUser-Agent: curl/7.55.1\r\nAccept: */*\r\nReferer: t\r\n\r\n'
-file:
-'GET /testing55 HTTP/1.1\r\nHost: localhost:8080\r\nUser-Agent: curl/7.55.1\r\nAccept: */*\r\nReferer: t\r\n\r\n'
-
-POST:
-'POST /testing55 HTTP/1.1\r\nHost: localhost:8080\r\nUser-Agent: curl/7.55.1\r\nAccept: */*\r\nContent-Type: application/json\r\nContent-Length: 37\r\n\r\n'{somethingelse:1234,password:23847}'

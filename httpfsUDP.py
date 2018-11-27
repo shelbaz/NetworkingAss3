@@ -10,9 +10,6 @@ CR = '\r'
 LF = '\n'
 
 sequence_number = 0
-#from click
-global_verbose = False
-global_directory = ''
 
 def fileDirectoryHandler(directory):
     rootDirectory = os.path.dirname(os.path.realpath(__file__))
@@ -25,23 +22,16 @@ def fileDirectoryHandler(directory):
 
     return (rootDirectory, allFiles)
 
+
 def init_request_split(request):
     (request_header, request_body) = request.split(TCRLF)
     request = request.split(CRLF)
     return (request, request_header, request_body)
 
 def process_request(request):
-    global global_verbose
     header = request[0].split()
-    print('header: ', header)
     method = header[0]
-    print('method: ', method)
-
     path = header[1]
-    print('path: ', path)
-
-    if '-v' in request:
-        global_verbose = True
     return (method, path)
 
 def read_file(directory, file_path):
@@ -105,17 +95,17 @@ def postHandler(path, listOfFiles, rootDir, verbose, body):
             print(errorMsg)
         return errorMsg
 
-def handle_response(connection, data, sender_address):
+def handle_response(connection):
     global sequence_number
-    global global_verbose
-    global global_directory
-    try:
+    end=False
+    while not end :
+        data, sender_address = connection.recvfrom(1024)
         received_packet = packetObj.Packet.from_bytes(data)
-        print("Packet: ", received_packet)
-        print("Packet type:", received_packet.packet_type)
         peer_ip_address = received_packet.peer_ip_addr
         peer_port = received_packet.peer_port
 
+        print("Packet: ", received_packet)
+        print("Packet type:", received_packet.packet_type)
 
         if(received_packet.packet_type == packetObj.SYN):
             sequence_number = random.randint(1,4294967295)
@@ -127,35 +117,30 @@ def handle_response(connection, data, sender_address):
             connection.sendto(sending_packet.to_bytes(), sender_address)
 
         if(received_packet.packet_type == packetObj.ACK):
-                print("Connection established, beginning data send")
-                ## Send data here
-
+            if(received_packet.seq_num ==sequence_number+1):
+                print("Connection established, beginning data receive")
                 ## When data finished being sent, expect FIN
 
         if(received_packet.packet_type == packetObj.DATA):
-            ## process receiving data if needed?
+            print('payload', received_packet.payload.decode('unicode_escape'))
             (request, headerData, bodyData) = init_request_split(received_packet.payload.decode('unicode_escape'))
-            (method, request) = process_request(request)
+            (method, path) = process_request(request)
             (rootDir, listOfFiles) = fileDirectoryHandler(global_directory)
-            response = ''
 
-            if('GET' in method):
-                response = getHandler(request, listOfFiles, rootDir, global_verbose)
-            elif('POST' in method):
+            if (method == "GET"):
+                response = getHandler(path, listOfFiles, rootDir, global_verbose)
+                sending_packet = packetObj.Packet(packetObj.DATA, sequence_number + 1, peer_ip_address, peer_port,
+                                                  response.encode('utf-8'))
+                connection.sendto(sending_packet.to_bytes(), sender_address)
+            elif (method == "POST"):
                 # body = request.split at data defining body
-                response = postHandler(request, listOfFiles, rootDir, global_verbose, bodyData)
+                response = postHandler(path, listOfFiles, rootDir, global_verbose, bodyData)
+                sending_packet = packetObj.Packet(packetObj.DATA, sequence_number + 1, peer_ip_address, peer_port,
+                                                  response.encode('utf-8'))
+                connection.sendto(sending_packet.to_bytes(), sender_address)
             else:
-                response = "Incorrect request format"
+                print("Incorrect request format")
 
-            if global_verbose:
-                headerData += '\n' + response
-                sending_packet = packetObj.Packet(packetObj.ACK, sequence_number+1, peer_ip_address, peer_port,
-                headerData.encode('utf-8'))
-                connection.sendto(sending_packet.to_bytes(), sender_address)
-            else:
-                sending_packet = packetObj.Packet(packetObj.ACK, sequence_number+1, peer_ip_address, peer_port,
-                response.encode('utf-8'))
-                connection.sendto(sending_packet.to_bytes(), sender_address)
             return
 
         if(received_packet.packet_type == packetObj.FIN):
@@ -172,10 +157,11 @@ def handle_response(connection, data, sender_address):
             ## wait for ACK for sent FIN
             print("Connection is closed")
             connection.close()
+            end=True
 
-    finally:
-        print("Connection is forcefully closed")
-        connection.close()
+    # finally:
+    #     print("Connection is forcefully closed")
+    #     connection.close()
 
 
 def init_connection(port):
@@ -184,8 +170,7 @@ def init_connection(port):
     connection.bind((hostname, port))
     print("Listening on port " + str(port))
 
-    data, address = connection.recvfrom(1024)
-    handle_response(connection, data, address)
+    handle_response(connection)
 
     # return (request, connection, request_header, request_body)
 
@@ -201,6 +186,8 @@ def cli(port, directory, verbose):
         global_verbose = True
     if directory:
         global_directory = directory
+
+
     # (method, path) = process_request(request)
     # (rootDir, listOfFiles) = fileDirectoryHandler(directory)
     # if verbose:
