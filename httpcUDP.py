@@ -81,7 +81,7 @@ def init_connection(router_address, router_port, server_addresss, server_port, c
             if(packet.packet_type == packetObj.SYN_ACK):
                 ack(connection, packet.peer_ip_addr, packet.peer_port, packet.seq_num, server_ip_address, server_port)
                 print("Connection established")
-                message = [header, bodydata]
+                message = [command, '', header, bodydata] ## placeholder for path
                 if (command.lower() == 'get'):
                     if (header):
                         print("we got a header - get")

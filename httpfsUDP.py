@@ -3,6 +3,7 @@ import click
 import os
 import packet as packetObj
 import random
+import ast
 
 TCRLF = '\r\n\r\n'
 CRLF = '\r\n'
@@ -10,6 +11,9 @@ CR = '\r'
 LF = '\n'
 
 sequence_number = 0
+global_directory = ''
+global_verbose = False
+
 
 def fileDirectoryHandler(directory):
     rootDirectory = os.path.dirname(os.path.realpath(__file__))
@@ -24,15 +28,12 @@ def fileDirectoryHandler(directory):
 
 
 def init_request_split(request):
-    (request_header, request_body) = request.split(TCRLF)
-    request = request.split(CRLF)
-    return (request, request_header, request_body)
-
-def process_request(request):
-    header = request[0].split()
-    method = header[0]
-    path = header[1]
-    return (method, path)
+    values = ast.literal_eval(request)
+    method = values[0]
+    path = values [1]
+    request_header = values[2]
+    request_body = values[3]
+    return (method, path, request_header, request_body)
 
 def read_file(directory, file_path):
     f = open(directory + file_path + ".txt", 'r')
@@ -123,16 +124,18 @@ def handle_response(connection):
 
         if(received_packet.packet_type == packetObj.DATA):
             print('payload', received_packet.payload.decode('unicode_escape'))
-            (request, headerData, bodyData) = init_request_split(received_packet.payload.decode('unicode_escape'))
-            (method, path) = process_request(request)
+            (method, path, header, bodyData) = init_request_split(received_packet.payload.decode('unicode_escape'))
             (rootDir, listOfFiles) = fileDirectoryHandler(global_directory)
-
-            if (method == "GET"):
+            print('method: ', method)
+            print('path: ' , path)
+            print('header: ', header)
+            print('bodyData: ' , bodyData)
+            if (method == "GET" or method == "get"):
                 response = getHandler(path, listOfFiles, rootDir, global_verbose)
                 sending_packet = packetObj.Packet(packetObj.DATA, sequence_number + 1, peer_ip_address, peer_port,
                                                   response.encode('utf-8'))
                 connection.sendto(sending_packet.to_bytes(), sender_address)
-            elif (method == "POST"):
+            elif (method == "POST" or method == "post"):
                 # body = request.split at data defining body
                 response = postHandler(path, listOfFiles, rootDir, global_verbose, bodyData)
                 sending_packet = packetObj.Packet(packetObj.DATA, sequence_number + 1, peer_ip_address, peer_port,
