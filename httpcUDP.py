@@ -31,7 +31,7 @@ CRLF = "\r\n"
 # LOOP Between Client and server: Send back and forth data until connection closed
 
 def syn(connection, router_address, router_port, server_ip_address, server_port):
-    message = "curl -get localhost:8080 /"
+    message = "'POST /testing55 HTTP/1.1\r\nHost: localhost:8080\r\nUser-Agent: curl/7.55.1\r\nAccept: */*\r\nContent-Type: application/json\r\nContent-Length: 37\r\n\r\n'{somethingelse:1234,password:23847}''"
     print(message)
     packet_type = packetObj.DATA
     sequence_number = random.randint(0,4294967295)  # 4 byte unsigned int (0-> 4294967295)
@@ -41,7 +41,7 @@ def syn(connection, router_address, router_port, server_ip_address, server_port)
 
 def ack(connection, router_address, router_port, sequence_number, server_ip_address, server_port):
     packet_type = packetObj.DATA
-    message = "curl -get localhost:8080 /"
+    message = "'POST /testing55 HTTP/1.1\r\nHost: localhost:8080\r\nUser-Agent: curl/7.55.1\r\nAccept: */*\r\nContent-Type: application/json\r\nContent-Length: 37\r\n\r\n'{somethingelse:1234,password:23847}''"
     response = create_and_send_packet(connection, packet_type, sequence_number+1, server_ip_address, server_port, (str(router_address), router_port), message)
     return response
 
