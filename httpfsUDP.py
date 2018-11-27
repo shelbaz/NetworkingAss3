@@ -133,7 +133,6 @@ def handle_response(connection, data, sender_address):
 
         if(received_packet.packet_type == packetObj.DATA):
             ## process receiving data if needed?
-            # format of request is  curl -get localhost:8080 /
             (request, headerData, bodyData) = init_request_split(received_packet.payload.decode('unicode_escape'))
             (method, request) = process_request(request)
             (rootDir, listOfFiles) = fileDirectoryHandler(global_directory)
@@ -148,7 +147,7 @@ def handle_response(connection, data, sender_address):
                 response = "Incorrect request format"
 
             if global_verbose:
-                headerData += response
+                headerData += '\n' + response
                 sending_packet = packetObj.Packet(packetObj.ACK, sequence_number+1, peer_ip_address, peer_port,
                 headerData.encode('utf-8'))
                 connection.sendto(sending_packet.to_bytes(), sender_address)
