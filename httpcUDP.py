@@ -78,10 +78,15 @@ def init_connection(router_address, router_port, server_addresss, server_port, c
             print("Payload:" + packet.payload.decode('utf-8'))
             print("Packet type", packet.packet_type)
             print("Seq Number", packet.seq_num)
+
+            if (packet.packet_type == packetObj.DATA):
+                print(packet)
+                print('Client received final payload: ', packet.payload.decode('unicode_escape'))
+
             if(packet.packet_type == packetObj.SYN_ACK):
                 ack(connection, packet.peer_ip_addr, packet.peer_port, packet.seq_num, server_ip_address, server_port)
                 print("Connection established")
-                message = [command, '', header, bodydata] ## placeholder for path
+                message = [command, '/', header, bodydata] ## placeholder for path
                 if (command.lower() == 'get'):
                     if (header):
                         print("we got a header - get")
@@ -136,7 +141,6 @@ def init_connection(router_address, router_port, server_addresss, server_port, c
                         if output:
                             print('writing file')
                             write_file(header, bodydata)
-
 
 
     except socket.timeout:

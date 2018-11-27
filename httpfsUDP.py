@@ -16,6 +16,7 @@ global_verbose = False
 
 
 def fileDirectoryHandler(directory):
+    print('inside directory handler')
     rootDirectory = os.path.dirname(os.path.realpath(__file__))
     if directory != '':
         rootDirectory = directory
@@ -130,16 +131,21 @@ def handle_response(connection):
             print('path: ' , path)
             print('header: ', header)
             print('bodyData: ' , bodyData)
+            print('rootDir:', rootDir)
+            print('listOfFiles', str(listOfFiles))
             if (method == "GET" or method == "get"):
                 response = getHandler(path, listOfFiles, rootDir, global_verbose)
+                print('response: ', response)
                 sending_packet = packetObj.Packet(packetObj.DATA, sequence_number + 1, peer_ip_address, peer_port,
                                                   response.encode('utf-8'))
+                print('sending packet: ', sending_packet)
                 connection.sendto(sending_packet.to_bytes(), sender_address)
             elif (method == "POST" or method == "post"):
                 # body = request.split at data defining body
                 response = postHandler(path, listOfFiles, rootDir, global_verbose, bodyData)
                 sending_packet = packetObj.Packet(packetObj.DATA, sequence_number + 1, peer_ip_address, peer_port,
                                                   response.encode('utf-8'))
+                print('sending packet: ', sending_packet)
                 connection.sendto(sending_packet.to_bytes(), sender_address)
             else:
                 print("Incorrect request format")
@@ -179,7 +185,7 @@ def init_connection(port):
 
 @click.command()
 @click.option('--port', '-p' , type=int, default=8007, help="Specifies a port number or default=8080")
-@click.option('--directory', '-d', type=str, default='', help="Specifies read/write directory or default is root")
+@click.option('--directory', '-d', type=str, default='/', help="Specifies read/write directory or default is root")
 @click.option('--verbose', '-v', is_flag=True, help="Will print verbose messages.")
 def cli(port, directory, verbose):
     global global_verbose
