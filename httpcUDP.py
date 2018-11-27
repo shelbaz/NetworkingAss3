@@ -63,7 +63,7 @@ def create_and_send_packet(connection, packet_type, sequence_number, server_ip_a
     packet = packetObj.Packet(packet_type, sequence_number, server_ip_address, server_port, message.encode('utf-8'))
     return connection.sendto(packet.to_bytes(), server_address)
 
-def init_connection(router_address, router_port, server_addresss, server_port, command, header, bodydata, file, output):
+def init_connection(router_address, router_port, server_addresss, server_port, command, header, bodydata, file, output, path):
     server_ip_address = ipaddress.ip_address(socket.gethostbyname(server_addresss))
     connection = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     timeout = 5
@@ -86,7 +86,7 @@ def init_connection(router_address, router_port, server_addresss, server_port, c
             if(packet.packet_type == packetObj.SYN_ACK):
                 ack(connection, packet.peer_ip_addr, packet.peer_port, packet.seq_num, server_ip_address, server_port)
                 print("Connection established")
-                message = [command, '/', header, bodydata] ## placeholder for path
+                message = [command, path, header, bodydata] ## placeholder for path
                 if (command.lower() == 'get'):
                     if (header):
                         print("we got a header - get")
@@ -157,6 +157,7 @@ def init_connection(router_address, router_port, server_addresss, server_port, c
 
 @click.command()
 @click.argument('command')
+@click.argument('path', default="/", type=str)
 @click.option('--verbose', '-v', is_flag=True, help="Will print verbose")
 @click.option('--header', '-h', type=str, help="Passes a header to the request" )
 @click.option('--bodydata', '-d', type=str, help="Passes data to the request")
@@ -167,8 +168,8 @@ def init_connection(router_address, router_port, server_addresss, server_port, c
 @click.option('--serverhost', '-sh', type=str, default='localhost', help="Assign server host ip")
 @click.option('--serverport', '-sp', type=str, default=8007, help="Assign server port number")
 
-def cli(verbose, routerhost, routerport, serverhost, serverport, command, header, bodydata, file, output):
-    init_connection(routerhost, routerport, serverhost, serverport, command, header, bodydata, file, output)
+def cli(verbose, routerhost, routerport, serverhost, serverport, command, header, bodydata, file, output, path):
+    init_connection(routerhost, routerport, serverhost, serverport, command, header, bodydata, file, output, path)
 
 
 if __name__ == '__main__':
