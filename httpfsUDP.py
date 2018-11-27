@@ -115,6 +115,8 @@ def handle_response(connection, data, sender_address):
         print("Packet type:", received_packet.packet_type)
         peer_ip_address = received_packet.peer_ip_addr
         peer_port = received_packet.peer_port
+
+
         if(received_packet.packet_type == packetObj.SYN):
             sequence_number = random.randint(1,4294967295)
             packet_type = packetObj.SYN_ACK
@@ -125,7 +127,6 @@ def handle_response(connection, data, sender_address):
             connection.sendto(sending_packet.to_bytes(), sender_address)
 
         if(received_packet.packet_type == packetObj.ACK):
-            if(received_packet.seq_num ==sequence_number+1):
                 print("Connection established, beginning data send")
                 ## Send data here
 

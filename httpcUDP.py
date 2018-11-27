@@ -31,17 +31,18 @@ CRLF = "\r\n"
 # LOOP Between Client and server: Send back and forth data until connection closed
 
 def syn(connection, router_address, router_port, server_ip_address, server_port):
-    message = "'POST /testing55 HTTP/1.1\r\nHost: localhost:8080\r\nUser-Agent: curl/7.55.1\r\nAccept: */*\r\nContent-Type: application/json\r\nContent-Length: 37\r\n\r\n'{somethingelse:1234,password:23847}''"
+    message = "Sending SYN"
     print(message)
-    packet_type = packetObj.DATA
+    packet_type = packetObj.SYN
     sequence_number = random.randint(0,4294967295)  # 4 byte unsigned int (0-> 4294967295)
     response = create_and_send_packet(connection, packet_type, sequence_number, server_ip_address, server_port,
                                       (router_address, router_port), message)
     return response
 
 def ack(connection, router_address, router_port, sequence_number, server_ip_address, server_port):
-    packet_type = packetObj.DATA
-    message = "'POST /testing55 HTTP/1.1\r\nHost: localhost:8080\r\nUser-Agent: curl/7.55.1\r\nAccept: */*\r\nContent-Type: application/json\r\nContent-Length: 37\r\n\r\n'{somethingelse:1234,password:23847}''"
+    packet_type = packetObj.ACK
+    message = "Sending ACK"
+    print(message)
     response = create_and_send_packet(connection, packet_type, sequence_number+1, server_ip_address, server_port, (str(router_address), router_port), message)
     return response
 
@@ -67,6 +68,8 @@ def init_connection(router_address, router_port, server_addresss, server_port):
             print("Seq Number", packet.seq_num)
             if(packet.packet_type == packetObj.SYN_ACK):
                 ack(connection, packet.peer_ip_addr, packet.peer_port, packet.seq_num, server_ip_address, server_port)
+
+
                 print("Connection established")
 
 
