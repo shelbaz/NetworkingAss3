@@ -43,6 +43,7 @@ def read_file(directory, file_path):
     return data_read
 
 def write_file(directory, file_path, body):
+    print('stuff', directory + " " + file_path)
     file = open(directory + file_path + ".txt", "w")
     file.write(str(body))
     file.close()
@@ -136,21 +137,78 @@ def handle_response(connection):
             if (method == "GET" or method == "get"):
                 response = getHandler(path, listOfFiles, rootDir, global_verbose)
                 print('response: ', response)
-                sending_packet = packetObj.Packet(packetObj.DATA, sequence_number + 1, peer_ip_address, peer_port,
-                                                  response.encode('utf-8'))
-                print('sending packet: ', sending_packet)
+                encoded_response = response.encode('utf-8')
+
+                buffer = bytearray()
+                buffer.extend(encoded_response)
+
+                current = 0
+                payloads = []
+
+                while current < len(buffer):
+                    current_data = buffer[current:current + 1012]
+
+                    p_send = packetObj.Packet(
+                        packet_type=packetObj.DATA,
+                        seq_num=sequence_number,
+                        peer_ip_addr=peer_ip_address,
+                        peer_port=peer_port,
+                        payload=current_data
+                    )
+                    payloads.append(p_send)
+                    current += 1013
+
+                for payload in payloads:
+                    connection.sendto(payload.to_bytes(), sender_address)
+
+
+                # sending_packet = packetObj.Packet(packetObj.DATA, sequence_number + 1, peer_ip_address, peer_port,
+                #                                   response.encode('utf-8'))
+                # print('sending packet: ', sending_packet)
+                #
+                #
+                #
+                # data, sender_address = connection.recvfrom(1024)
+                # received_packet = packetObj.Packet.from_bytes(data)
                 connection.sendto(sending_packet.to_bytes(), sender_address)
             elif (method == "POST" or method == "post"):
                 # body = request.split at data defining body
                 response = postHandler(path, listOfFiles, rootDir, global_verbose, bodyData)
-                sending_packet = packetObj.Packet(packetObj.DATA, sequence_number + 1, peer_ip_address, peer_port,
-                                                  response.encode('utf-8'))
-                print('sending packet: ', sending_packet)
-                connection.sendto(sending_packet.to_bytes(), sender_address)
+
+                encoded_response = response.encode('utf-8')
+
+                buffer = bytearray()
+                buffer.extend(encoded_response)
+
+                current = 0
+                payloads = []
+
+                while current < len(buffer):
+                    current_data = buffer[current:current + 1012]
+
+                    p_send = packetObj.Packet(
+                        packet_type=packetObj.DATA,
+                        seq_num=sequence_number,
+                        peer_ip_addr=peer_ip_address,
+                        peer_port=peer_port,
+                        payload=current_data
+                    )
+                    payloads.append(p_send)
+                    current += 1013
+
+                for payload in payloads:
+                    connection.sendto(payload.to_bytes(), sender_address)
+
+
+                # sending_packet = packetObj.Packet(packetObj.DATA, sequence_number + 1, peer_ip_address, peer_port,
+                #                                   response.encode('utf-8'))
+                # print('sending packet: ', sending_packet)
+                # data, sender_address = connection.recvfrom(1024)
+                # received_packet = packetObj.Packet.from_bytes(data)
+                # connection.sendto(sending_packet.to_bytes(), sender_address)
             else:
                 print("Incorrect request format")
-
-            return
+                end=True
 
         if(received_packet.packet_type == packetObj.FIN):
             ## sending ACK for received FIN

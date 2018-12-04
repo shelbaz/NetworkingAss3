@@ -13,6 +13,7 @@ CRLF = "\r\n"
 
 def write_file(header, body):
     file = open("output.txt", "w")
+    print('body', body)
     file.write(header)
     file.write(body)
     file.close()
@@ -29,14 +30,6 @@ def read_file(file_path):
 # CLIENT: Sends back ACK packet with next seq number , also send Data in next packet with length
 # SERVER: Responds with ACK (first packet), Responds with ACK of length
 # LOOP Between Client and server: Send back and forth data until connection closed
-
-
-def get():
-    return
-
-
-def post():
-    return
 
 
 def syn(connection, router_address, router_port, server_ip_address, server_port):
@@ -56,18 +49,32 @@ def ack(connection, router_address, router_port, sequence_number, server_ip_addr
 def data(connection, router_address, router_port, sequence_number, server_ip_address, server_port, message):
     packet_type = packetObj.DATA
     print("Sending DATA")
-    response = create_and_send_packet(connection, packet_type, sequence_number+1, server_ip_address, server_port, (str(router_address), router_port), str(message))
-    return response
+    connection = create_and_send_packet(connection, packet_type, sequence_number+1, server_ip_address, server_port, (str(router_address), router_port), str(message))
+    connection.settimeout(5)
+
+
+    print('Waiting for a response')
+
+    response, sender = connection.recvfrom(1024)
+    p = packetObj.Packet.from_bytes(response)
+
+    print('Router: ', sender)
+    print('Packet: ', p)
+    print('Payload: ' + p.payload.decode("utf-8"))
+
+    return connection
 
 def create_and_send_packet(connection, packet_type, sequence_number, server_ip_address, server_port, server_address, message):
     packet = packetObj.Packet(packet_type, sequence_number, server_ip_address, server_port, message.encode('utf-8'))
-    return connection.sendto(packet.to_bytes(), server_address)
+    connection.sendto(packet.to_bytes(), server_address)
+    return connection
 
 def init_connection(router_address, router_port, server_addresss, server_port, command, header, bodydata, file, output, path):
     server_ip_address = ipaddress.ip_address(socket.gethostbyname(server_addresss))
     connection = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     timeout = 5
     try:
+        ## Sending SYN
         syn(connection, router_address, router_port, server_ip_address, server_port)
         connection.settimeout(timeout)
         packet_type = -1
@@ -86,11 +93,12 @@ def init_connection(router_address, router_port, server_addresss, server_port, c
             if(packet.packet_type == packetObj.SYN_ACK):
                 ack(connection, packet.peer_ip_addr, packet.peer_port, packet.seq_num, server_ip_address, server_port)
                 print("Connection established")
+                print('path', path)
                 message = [command, path, header, bodydata] ## placeholder for path
                 if (command.lower() == 'get'):
                     if (header):
                         print("we got a header - get")
-                        data(connection, packet.peer_ip_addr, packet.peer_port, packet.seq_num, server_ip_address, server_port,
+                        connection = data(connection, packet.peer_ip_addr, packet.peer_port, packet.seq_num, server_ip_address, server_port,
                              message)
                         if output:
                             print('writing file')
@@ -161,7 +169,7 @@ def init_connection(router_address, router_port, server_addresss, server_port, c
 @click.option('--verbose', '-v', is_flag=True, help="Will print verbose")
 @click.option('--header', '-h', type=str, help="Passes a header to the request" )
 @click.option('--bodydata', '-d', type=str, help="Passes data to the request")
-@click.option('--file', '-f', multiple=True, help="Will include file")
+@click.option('--file', '-f', type=str, help="Will include file")
 @click.option('--output', '-o', multiple=True, is_flag=True, help="Will write to file")
 @click.option('--routerhost', '-rh', type=str, default='localhost', help="Assign router host ip")
 @click.option('--routerport', '-rp', type=str, default=3000, help="Assign router port number")
@@ -169,6 +177,7 @@ def init_connection(router_address, router_port, server_addresss, server_port, c
 @click.option('--serverport', '-sp', type=str, default=8007, help="Assign server port number")
 
 def cli(verbose, routerhost, routerport, serverhost, serverport, command, header, bodydata, file, output, path):
+    print('file', file)
     init_connection(routerhost, routerport, serverhost, serverport, command, header, bodydata, file, output, path)
 
 

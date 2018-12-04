@@ -1,5 +1,21 @@
 Assignment 3 Client:
 
+
+python3 httpcUDP.py get /testing55
+
+                         filename   data
+python3 httpcUDP.py post /abc1 -d 'hello how are you'
+python3 httpcUDP.py post /abcd -h '{"Test":"Something"}' -d 'abcbcbc' -o
+
+python3 httpcUDP.py get /abcd -h '{"Test":"Something"}'
+
+python3 httpcUDP.py get /abc1
+
+python3 httpcUDP.py get /abcd -h '{"Test":"Something"}' -o
+
+
+
+
 'POST /testing55 Host: localhost:8080 Content-Type: application/json Content-Length: 37\r\n\r\n'{somethingelse:1234,password:23847}'
 
 python3 httpcUDP.py -h '{"Test":"Something"}'
